@@ -1,9 +1,12 @@
+@import helper._
+
 @()
 
 @main("Sign Up") {
   <h1>Sign Up</h1>
 
-  <div>
+  @helper.form(action = routes.SignUpController.submitSignUpDetails()) {
+
     <label for="firstName">First Name:</label>
     <input type="text" id="firstName" name="firstName" required>
     <label for="surname">Surname:</label>
@@ -12,6 +15,13 @@
     <input type="email" id="email" name="email" required>
     <label for="password">Password:</label>
     <input type="password" id="password" name="password" required>
+
+    <button type="submit">Sign Up</button>
+
+  }
+
+  <div class="links">
+    <a href="@routes.HomeController.index()">Home</a>
   </div>
 
 }

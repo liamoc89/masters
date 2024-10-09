@@ -49,5 +49,40 @@ class SignUpControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
             status(result) mustBe OK
             contentAsString(result) must include("""<input type="password" id="password" name="password" required>""")
         }
+
+        "include a link to the home page" in {
+            val controller = new SignUpController(stubControllerComponents())
+            val home = controller.showSignUpForm().apply(FakeRequest(GET, "/"))
+
+            contentAsString(home) must include("""<a href="/">Home</a>""")
+        }
+
+        "include a Sign Up button in the sign up page" in {
+            val request = FakeRequest(GET, "/signup")
+            val result = route(app, request).get
+
+            status(result) mustBe OK
+            contentAsString(result) must include("""<button type="submit">Sign Up</button>""")
+        }
+
+    }
+
+    "SignUpController POST" should {
+
+        "handle form submission for sign up" in {
+            val request = FakeRequest(POST, "/signup")
+                .withFormUrlEncodedBody(
+                    "firstName" -> "John",
+                    "surname" -> "Doe",
+                    "email" -> "john.doe@example.com",
+                    "password" -> "password123"
+                )
+
+            val result = route(app, request).get
+
+            status(result) mustBe SEE_OTHER // Expecting a redirect after form submission
+            redirectLocation(result) mustBe Some("/") // Expecting to be redirected to the home page
+            flash(result).get("success") mustBe Some("Sign up successful!") // Assuming a success message in flash scope
+        }
     }
 }
