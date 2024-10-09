@@ -17,7 +17,7 @@ class LoginController @Inject()(cc: ControllerComponents) extends AbstractContro
     )
     // Placeholder action to render the login form
     def showLoginForm() = Action { implicit request: Request[AnyContent] =>
-        Ok(login())
+        Ok(login(loginForm))
     }
 
     // Handle form submission
@@ -25,7 +25,7 @@ class LoginController @Inject()(cc: ControllerComponents) extends AbstractContro
         loginForm.bindFromRequest.fold(
             formWithErrors => {
                 // If the form has errors, re-render the page with errors
-                BadRequest(views.html.signUp())
+                BadRequest(login(formWithErrors)) // Pass the form with errors to the view
             },
             formData => {
                 // If successful, redirect to the home page with a success message

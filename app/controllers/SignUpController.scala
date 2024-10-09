@@ -19,7 +19,7 @@ class SignUpController @Inject()(cc: ControllerComponents) extends AbstractContr
     )
 
     def showSignUpForm() = Action { implicit request: Request[AnyContent] =>
-        Ok(signUp())
+        Ok(signUp(signUpForm))
     }
 
     // Handle form submission
@@ -27,7 +27,7 @@ class SignUpController @Inject()(cc: ControllerComponents) extends AbstractContr
         signUpForm.bindFromRequest.fold(
             formWithErrors => {
                 // If the form has errors, re-render the page with errors
-                BadRequest(views.html.signUp())
+                BadRequest(views.html.signUp(formWithErrors))
             },
             formData => {
                 // If successful, redirect to the home page with a success message
