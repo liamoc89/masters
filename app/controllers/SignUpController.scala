@@ -9,7 +9,7 @@ import play.api.data.Forms._
 @Singleton
 class SignUpController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
 
-    val signUpForm = Form(
+    val signUpForm: Form[SignUpData] = Form(
         mapping(
             "firstName" -> nonEmptyText,
             "surname" -> nonEmptyText,
@@ -18,12 +18,12 @@ class SignUpController @Inject()(cc: ControllerComponents) extends AbstractContr
         )(SignUpData.apply)(SignUpData.unapply)
     )
 
-    def showSignUpForm() = Action { implicit request: Request[AnyContent] =>
+    def showSignUpForm(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
         Ok(signUp(signUpForm))
     }
 
     // Handle form submission
-    def submitSignUpDetails() = Action { implicit request =>
+    def submitSignUpDetails(): Action[AnyContent] = Action { implicit request =>
         signUpForm.bindFromRequest.fold(
             formWithErrors => {
                 // If the form has errors, re-render the page with errors
