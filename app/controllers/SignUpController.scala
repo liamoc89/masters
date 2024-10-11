@@ -5,6 +5,7 @@ import play.api.mvc._
 import views.html.signUp
 import play.api.data.Form
 import play.api.data.Forms._
+import play.api.libs.json.{Json, OFormat}
 
 @Singleton
 class SignUpController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
@@ -38,3 +39,7 @@ class SignUpController @Inject()(cc: ControllerComponents) extends AbstractContr
 }
 
 case class SignUpData(firstName: String, surname: String, email: String, password: String)
+
+object SignUpData {
+    implicit val format: OFormat[SignUpData] = Json.format[SignUpData] // JSON format for serialization
+}

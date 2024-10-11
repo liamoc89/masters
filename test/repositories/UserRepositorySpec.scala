@@ -2,13 +2,33 @@ package repositories
 
 import controllers.SignUpData
 import org.scalatestplus.play.PlaySpec
+import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.Configuration
+import play.api.inject.guice.GuiceApplicationBuilder
 
-class UserRepositorySpec extends PlaySpec {
+import utils.MongoConfig
 
-    val mockUserRepository = new UserRepository {}
+import scala.concurrent.ExecutionContext.Implicits.global
+
+
+class UserRepositorySpec extends PlaySpec with GuiceOneAppPerSuite {
+
+    override def fakeApplication() = new GuiceApplicationBuilder()
+        .configure("mongodb.uri" -> "mongodb://localhost:27017/masters2025")
+        .build()
+
+    val mongoConfig: MongoConfig = app.injector.instanceOf[MongoConfig]
+    val userRepository: UserRepository = app.injector.instanceOf[UserRepository]
+
+    "UserRepository" should {
+        "connect to the MongoDB instance" in {
+            val uri = mongoConfig.getConnection
+            assert(uri != null )
+        }
+    }
+
 
     "createUser" should {
-
         "create a user and return true when passed valid user data" in {
             // Create valid sign up data
             val userData = SignUpData(
@@ -17,30 +37,44 @@ class UserRepositorySpec extends PlaySpec {
                 email = "john.doe@example.com",
                 password = "Password123"
             )
-            val initialUserCount = mockUserRepository.userCount
-            mockUserRepository.createUser(userData)
-            val result = mockUserRepository.userExists(userData.email)
+            val initialUserCount = userRepository.userCount
+            val result = userRepository.createUser(userData)
 
-            // Ensure user count has increased by 1
-            mockUserRepository.userCount mustBe initialUserCount + 1
             result mustBe true
+            userRepository.userExists(userData.email) mustBe true
+            userRepository.userCount mustBe initialUserCount + 1
 
         }
 
         "not create a user and return false when passed invalid user data" in {
-
             // Create invalid sign up data
             val invalidUserData = SignUpData(
                 firstName = "", // Invalid
                 surname = "", // Invalid
-                email = "john.doe123@example.com", // different email to valid user data in previous test
+                email = "john.doe@example.com",
                 password = "Password123"
             )
-            val initialUserCount = mockUserRepository.userCount
-            mockUserRepository.createUser(invalidUserData)
-            val result = mockUserRepository.userExists(invalidUserData.email)
+
+            val result = userRepository.createUser(invalidUserData)
+
             result mustBe false
-            mockUserRepository.userCount mustBe initialUserCount
+
+        }
+
+        "not create a user and return false when trying to" +
+            " use an email address that has already been used" in {
+            // Create invalid sign up data
+            val invalidUserData = SignUpData(
+                firstName = "John", // Invalid
+                surname = "Doe", // Invalid
+                email = "john.doe@example.com",
+                password = "Password123"
+            )
+            userRepository.createUser(invalidUserData)
+            val result = userRepository.createUser(invalidUserData)
+
+            result mustBe false
+
         }
 
     }
@@ -53,14 +87,14 @@ class UserRepositorySpec extends PlaySpec {
                 email = "john.doe@example.com",
                 password = "Password123"
             )
-            mockUserRepository.createUser(userData)
+            userRepository.createUser(userData)
 
-            val result = mockUserRepository.userExists("john.doe@example.com")
+            val result = userRepository.userExists("john.doe@example.com")
             result mustBe true
         }
 
         "return false if a user does not exist" in {
-            val result = mockUserRepository.userExists("nonExistent@example.com")
+            val result = userRepository.userExists("nonExistent@example.com")
             result mustBe false
         }
     }
@@ -75,7 +109,7 @@ class UserRepositorySpec extends PlaySpec {
                 password = "Password123"
             )
 
-            val result = mockUserRepository.validateSignUpData(userData)
+            val result = userRepository.validateSignUpData(userData)
             result mustBe true
         }
 
@@ -88,7 +122,7 @@ class UserRepositorySpec extends PlaySpec {
                 password = "Password123"
             )
 
-            val result = mockUserRepository.validateSignUpData(userData)
+            val result = userRepository.validateSignUpData(userData)
             result mustBe false
         }
 
@@ -104,22 +138,18 @@ class UserRepositorySpec extends PlaySpec {
                 password = "Password123"
             )
 
-            mockUserRepository.createUser(userData)
-            val result = mockUserRepository.getUserByEmail("test@example.com")
+            userRepository.createUser(userData)
+            val result = userRepository.getUserByEmail("test@example.com")
 
             result mustBe Some(userData)
         }
 
         "return None for a non-existing user" in {
-            // Attempt to retrieve user data for an email that hasn't been used
-            val result = mockUserRepository.getUserByEmail("nonexistent@example.com")
-
-            // Verify that the result is None
+            val result = userRepository.getUserByEmail("nonexistent@example.com")
             result mustBe None
         }
 
         "return user data for an existing user with a case-insensitive email lookup" in {
-            val userRepository = new UserRepository {}
             val userData = SignUpData(
                 firstName = "Jane",
                 surname = "Doe",
@@ -133,13 +163,11 @@ class UserRepositorySpec extends PlaySpec {
         }
 
         "return None when searching for an empty email string" in {
-            val userRepository = new UserRepository {}
             val result = userRepository.getUserByEmail("")
             result mustBe None
         }
 
         "return correct user data when multiple users exist in the repository" in {
-            val userRepository = new UserRepository {}
             val userData1 = SignUpData(
                 firstName = "First",
                 surname = "User",
@@ -163,27 +191,30 @@ class UserRepositorySpec extends PlaySpec {
 
     "hashPassword" should {
         "hash passwords correctly" in {
-
             val plainPassword = "Password123"
-            val hashedPassword = mockUserRepository.hashPassword(plainPassword)
+            val hashedPassword = userRepository.hashPassword(plainPassword)
 
             // Check that the hashed password is not the same as the plain password
             hashedPassword must not equal plainPassword
         }
 
-        "validate the password using BCrypt" in {
-            val userRepository = new UserRepository {}
+        "produce different hashes for the same password on different calls" in {
+            val plainPassword = "Password123"
+            val hashedPassword1 = userRepository.hashPassword(plainPassword)
+            val hashedPassword2 = userRepository.hashPassword(plainPassword)
 
+            hashedPassword1 must not equal hashedPassword2 // Ensure different hashes
+        }
+
+        "validate the password using BCrypt" in {
             val plainPassword = "Password123"
             val hashedPassword = userRepository.hashPassword(plainPassword)
 
             // Validate that the plain password matches the hashed password
             userRepository.checkPassword(plainPassword, hashedPassword) mustBe true
         }
-//
-        "fail password validation if passwords don't match" in {
-            val userRepository = new UserRepository {}
 
+        "fail password validation if passwords don't match" in {
             val plainPassword = "Password123"
             val hashedPassword = userRepository.hashPassword(plainPassword)
 

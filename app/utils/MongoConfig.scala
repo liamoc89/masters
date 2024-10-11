@@ -10,9 +10,11 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class MongoConfig @Inject()(config: Configuration)(implicit ec: ExecutionContext) extends Logging {
 
-    private val dbName: String = config.get[String]("mongodb.dbName")
     private val driver = AsyncDriver()
-    private val parsedUri: Future[MongoConnection.ParsedURI] = MongoConnection.fromString(config.get[String]("mongodb.uri"))
+
+    private val mongoUri: String = config.get[String]("mongodb.uri")
+    println(mongoUri)
+    private val parsedUri: Future[MongoConnection.ParsedURI] = MongoConnection.fromString(uri=mongoUri)
     private val connection: Future[MongoConnection] = parsedUri.flatMap(uri => driver.connect(uri))
 
     parsedUri.onComplete {
@@ -20,7 +22,6 @@ class MongoConfig @Inject()(config: Configuration)(implicit ec: ExecutionContext
         case scala.util.Failure(ex) => logger.error("Failed to parse MongoDB URI", ex)
     }
 
-    def getDatabaseName: String = dbName
 
     def getConnection: Future[MongoConnection] = connection
 
