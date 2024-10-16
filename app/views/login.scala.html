@@ -1,12 +1,15 @@
 @import helper._
 @import play.api.data.Form
+@import play.filters.csrf.CSRF
 
-@(loginForm: Form[LoginData])
+@(loginForm: Form[LoginData])(implicit request: RequestHeader)
 
 @main("Login") {
   <h1>Login</h1>
 
   @helper.form(action = routes.LoginController.submitLoginDetails()) {
+
+    @helper.CSRF.formField
 
     <div>
       <label for="email">Email:</label>

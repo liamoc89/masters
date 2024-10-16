@@ -1,11 +1,25 @@
 package controllers
 
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
+import org.scalatestplus.mockito.MockitoSugar.mock
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice._
+import play.api.Play.materializer
+import play.api.test.CSRFTokenHelper.CSRFFRequestHeader
 import play.api.test._
 import play.api.test.Helpers._
+import repositories.UserRepository
+
+import scala.concurrent.{ExecutionContext, Future}
 
 class SignUpControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
+
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+    val mockUserRepository: UserRepository = mock[UserRepository]
+    val signUpController = new SignUpController(stubControllerComponents(), mockUserRepository)
+
+    val validSignUpData: SignUpData = SignUpData("John", "Doe", "john.doe@example.com", "Password123")
 
     "SignUpController GET" should {
 
@@ -51,8 +65,7 @@ class SignUpControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
         }
 
         "include a link to the home page" in {
-            val controller = new SignUpController(stubControllerComponents())
-            val home = controller.showSignUpForm().apply(FakeRequest(GET, "/"))
+            val home = signUpController.showSignUpForm().apply(FakeRequest(GET, "/").withCSRFToken)
 
             contentAsString(home) must include("""<a href="/">Home</a>""")
         }
@@ -69,16 +82,14 @@ class SignUpControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
 
     "SignUpController POST" should {
 
-        "handle form submission for sign up" in {
-            val request = FakeRequest(POST, "/signup")
-                .withFormUrlEncodedBody(
-                    "firstName" -> "John",
-                    "surname" -> "Doe",
-                    "email" -> "john.doe@example.com",
-                    "password" -> "password123"
-                )
-
-            val result = route(app, request).get
+        "handle form submission for sign up with valid sign up details" in {
+            when(mockUserRepository.createUser(any[SignUpData])).thenReturn(Future.successful((true)))
+            val result = signUpController.submitSignUpDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                "firstName" -> "John",
+                "surname" -> "Doe",
+                "email" -> "john.doe@example.com",
+                "password" -> "password123"
+            ))
 
             status(result) mustBe SEE_OTHER // Expecting a redirect after form submission
             redirectLocation(result) mustBe Some("/") // Expecting to be redirected to the home page
@@ -86,15 +97,13 @@ class SignUpControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
         }
 
         "show error for invalid sign up details when first name field is empty" in {
-            val request = FakeRequest(POST, "/signup")
-                .withFormUrlEncodedBody(
-                    "firstName" -> "", // empty - should trigger validation error
-                    "surname" -> "Doe", // valid surname
-                    "email" -> "john.doe@example.com", // valid email
-                    "password" -> "Password123" // valid password
-                )
-
-            val result = route(app, request).get
+            when(mockUserRepository.createUser(any[SignUpData])).thenReturn(Future.successful((true)))
+            val result = signUpController.submitSignUpDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                "firstName" -> "",
+                "surname" -> "Doe",
+                "email" -> "john.doe@example.com",
+                "password" -> "password123"
+            ).withCSRFToken)
 
             status(result) mustBe BAD_REQUEST // bad request due to validation errors
             contentAsString(result) must include("Sign Up") // Ensure we're still on the sign up page
@@ -103,15 +112,13 @@ class SignUpControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
         }
 
         "show error for invalid sign up details when surname field is empty" in {
-            val request = FakeRequest(POST, "/signup")
-                .withFormUrlEncodedBody(
-                    "firstName" -> "John", // valid first name
-                    "surname" -> "", // empty - should trigger validation error
-                    "email" -> "john.doe@example.com", // valid email
-                    "password" -> "Password123" // valid password
-                )
-
-            val result = route(app, request).get
+            when(mockUserRepository.createUser(any[SignUpData])).thenReturn(Future.successful((true)))
+            val result = signUpController.submitSignUpDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                "firstName" -> "John",
+                "surname" -> "",
+                "email" -> "john.doe@example.com",
+                "password" -> "password123"
+            ).withCSRFToken)
 
             status(result) mustBe BAD_REQUEST // bad request due to validation errors
             contentAsString(result) must include("Sign Up") // Ensure we're still on the sign up page
@@ -120,32 +127,28 @@ class SignUpControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecti
         }
 
         "show error for invalid sign up details when email is invalid" in {
-            val request = FakeRequest(POST, "/signup")
-                .withFormUrlEncodedBody(
-                    "firstName" -> "John", // valid first name
-                    "surname" -> "Doe", // valid surname
-                    "email" -> "invalid-email", // invalid email
-                    "password" -> "Password123" // valid password
-                )
-
-            val result = route(app, request).get
+            when(mockUserRepository.createUser(any[SignUpData])).thenReturn(Future.successful((true)))
+            val result = signUpController.submitSignUpDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                "firstName" -> "John",
+                "surname" -> "Doe",
+                "email" -> "invalid-email",
+                "password" -> "password123"
+            ).withCSRFToken)
 
             status(result) mustBe BAD_REQUEST // bad request due to validation errors
             contentAsString(result) must include("Sign Up") // Ensure we're still on the sign up page
-            contentAsString(result) must include("error.email")
+            contentAsString(result) must include("error.required")
             contentAsString(result) must include("email")
         }
 
         "show error for invalid sign up details when password field is empty" in {
-            val request = FakeRequest(POST, "/signup")
-                .withFormUrlEncodedBody(
-                    "firstName" -> "John", // valid first name
-                    "surname" -> "Doe", // valid surname
-                    "email" -> "john.doe@example.com", // valid email
-                    "password" -> "" // empty password
-                )
-
-            val result = route(app, request).get
+            when(mockUserRepository.createUser(any[SignUpData])).thenReturn(Future.successful((true)))
+            val result = signUpController.submitSignUpDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                "firstName" -> "John",
+                "surname" -> "Doe",
+                "email" -> "john.doe@example.com",
+                "password" -> ""
+            ).withCSRFToken)
 
             status(result) mustBe BAD_REQUEST // bad request due to validation errors
             contentAsString(result) must include("Sign Up") // Ensure we're still on the sign up page

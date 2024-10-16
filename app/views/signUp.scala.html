@@ -1,11 +1,16 @@
 @import helper._
+@import play.api.data.Form
+@import play.filters.csrf.CSRF
 
-@(signUpForm: Form[SignUpData])
+
+@(signUpForm: Form[SignUpData])(implicit request: RequestHeader)
 
 @main("Sign Up") {
   <h1>Sign Up</h1>
 
   @helper.form(action = routes.SignUpController.submitSignUpDetails()) {
+
+    @helper.CSRF.formField
 
     <label for="firstName">First Name:</label>
     <input type="text" id="firstName" name="firstName" required value="@signUpForm("firstName").value">

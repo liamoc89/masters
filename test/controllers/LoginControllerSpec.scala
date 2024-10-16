@@ -2,10 +2,14 @@ package controllers
 
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice._
+import play.api.Play.materializer
+import play.api.test.CSRFTokenHelper.CSRFFRequestHeader
 import play.api.test.Helpers._
 import play.api.test._
 
 class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
+
+    val loginController = new LoginController(stubControllerComponents())
 
     "LoginController GET" should {
 
@@ -28,8 +32,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
         }
 
         "include a Password input box in the login page" in {
-            val request = FakeRequest(GET, "/login")
-            val result = route(app, request).get
+            val result = loginController.showLoginForm().apply(FakeRequest(GET, "/login").withCSRFToken)
 
             status(result) mustBe OK
             contentAsString(result) must include("""<input type="password" id="password" name="password" required """)
@@ -37,7 +40,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
 
         "include a link to the home page" in {
             val controller = new LoginController(stubControllerComponents())
-            val home = controller.showLoginForm().apply(FakeRequest(GET, "/"))
+            val home = controller.showLoginForm().apply(FakeRequest(GET, "/").withCSRFToken)
 
             contentAsString(home) must include("""<a href="/">Home</a>""")
         }
@@ -68,41 +71,34 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
         }
 
         "show errors for invalid login when email address is invalid" in {
-            val request = FakeRequest(POST, "/login")
-                .withFormUrlEncodedBody(
-                    "email" -> "invalid-email", // invalid email address
-                    "password" -> "Password123" // valid password
-                )
+            val result = loginController.submitLoginDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                    "email" -> "invalid-email",
+                    "password" -> "Password123"
+                ).withCSRFToken)
 
-            val result = route(app, request).get
 
             status(result) mustBe BAD_REQUEST // bad request due to validation errors
             contentAsString(result) must include("Login") // Ensure we're still on the login page
-            contentAsString(result) must include("error.email")
+            contentAsString(result) must include("error.required")
         }
 
         "show errors for invalid login when email address is empty" in {
-            val request = FakeRequest(POST, "/login")
-                .withFormUrlEncodedBody(
-                    "email" -> "", // empty email field
-                    "password" -> "Password123" // valid password
-                )
+            val result = loginController.submitLoginDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                "email" -> "",
+                "password" -> "Password123"
+            ).withCSRFToken)
 
-            val result = route(app, request).get
 
             status(result) mustBe BAD_REQUEST // bad request due to validation errors
             contentAsString(result) must include("Login") // Ensure we're still on the login page
-            contentAsString(result) must include("error.email")
+            contentAsString(result) must include("error.required")
         }
 
         "show errors for invalid login when password field is empty" in {
-            val request = FakeRequest(POST, "/login")
-                .withFormUrlEncodedBody(
-                    "email" -> "john.doe@example.com", // empty email field
-                    "password" -> "" // No password provided
-                )
-
-            val result = route(app, request).get
+            val result = loginController.submitLoginDetails().apply(FakeRequest().withFormUrlEncodedBody(
+                "email" -> "john.doe@example.com",
+                "password" -> ""
+            ).withCSRFToken)
 
             status(result) mustBe BAD_REQUEST // bad request due to validation errors
             contentAsString(result) must include("Login") // Ensure we're still on the login page

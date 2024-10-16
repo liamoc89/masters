@@ -7,9 +7,12 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.libs.json.{Json, OFormat}
 import reactivemongo.api.bson.{BSONDocumentHandler, Macros}
+import repositories.UserRepository
+
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SignUpController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
+class SignUpController @Inject()(cc: ControllerComponents, userRepository: UserRepository)(implicit ec: ExecutionContext) extends AbstractController(cc) {
 
     val signUpForm: Form[SignUpData] = Form(
         mapping(
@@ -25,15 +28,23 @@ class SignUpController @Inject()(cc: ControllerComponents) extends AbstractContr
     }
 
     // Handle form submission
-    def submitSignUpDetails(): Action[AnyContent] = Action { implicit request =>
+    def submitSignUpDetails(): Action[AnyContent] = Action.async { implicit request =>
+        println(s"${request.body} ELEPHANT")
         signUpForm.bindFromRequest.fold(
             formWithErrors => {
+                println(formWithErrors.errors)
                 // If the form has errors, re-render the page with errors
-                BadRequest(views.html.signUp(formWithErrors))
+                Future.successful(BadRequest(views.html.signUp(formWithErrors)))
             },
             formData => {
-                // If successful, redirect to the home page with a success message
-                Redirect("/").flashing("success" -> "Sign up successful!")
+                userRepository.createUser(formData).map {
+                    userCreated =>
+                        if(userCreated) {
+                            Redirect("/").flashing("success" -> "Sign up successful!")
+                        } else {
+                            BadRequest(views.html.signUp(signUpForm.withError("email", "Unable to create user")))
+                        }
+                }
             }
         )
     }

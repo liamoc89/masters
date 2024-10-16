@@ -1,8 +1,16 @@
-@()
+@()(implicit request: RequestHeader)
+@import play.api.mvc.Flash
 
 @main("Welcome to the Masters 2025") {
   <h1>Welcome to the Masters 2025</h1>
 
+  @request.flash.get("success").map { message =>
+  <div class="alert alert-success">@message</div>
+  }
+
+  @request.flash.get("error").map { message =>
+  <div class="alert alert-danger">@message</div>
+  }
 
   <div class="links-container">
     <div class="links">
