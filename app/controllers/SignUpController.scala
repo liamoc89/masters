@@ -29,7 +29,6 @@ class SignUpController @Inject()(cc: ControllerComponents, userRepository: UserR
 
     // Handle form submission
     def submitSignUpDetails(): Action[AnyContent] = Action.async { implicit request =>
-        println(s"${request.body} ELEPHANT")
         signUpForm.bindFromRequest.fold(
             formWithErrors => {
                 println(formWithErrors.errors)
