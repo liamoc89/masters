@@ -75,7 +75,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
 
     "LoginController POST" should {
 
-        "handle form submission for login with correct user login" in {
+        "redirect to the dashboard page when correct login details are provided" in {
             when(mockUserRepository.getUserByEmail(any[String])).thenReturn(Future.successful(Some(validSignUpData)))
             when(mockUserRepository.checkPassword(any[String], any[String])).thenReturn(true)
 
@@ -88,7 +88,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
             val result = loginController.submitLoginDetails().apply(request)
 
             status(result) mustBe SEE_OTHER // Expecting a redirect after form submission
-            redirectLocation(result) mustBe Some("/") // Expecting to be redirected to the home page
+            redirectLocation(result) mustBe Some("/dashboard") // Expecting to be redirected to the home page
             flash(result).get("success") mustBe Some("Logged in successfully!") // Assuming a success message in flash scope
         }
 

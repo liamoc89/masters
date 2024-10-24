@@ -37,7 +37,7 @@ class LoginController @Inject()(cc: ControllerComponents, userRepository: UserRe
                 userRepository.getUserByEmail(loginData.email).flatMap {
                     case Some(userData) =>
                         if (userRepository.checkPassword(loginData.password, userData.password)) {
-                            Future.successful(Redirect(routes.HomeController.index())
+                            Future.successful(Redirect(routes.DashboardController.showDashboard())
                                 .withSession("email" -> loginData.email)
                                 .flashing("success" -> "Logged in successfully!"))
                         } else {
