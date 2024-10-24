@@ -1,15 +1,34 @@
 package controllers
 
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{reset, when}
+import org.scalatest.BeforeAndAfterEach
+import org.scalatestplus.mockito.MockitoSugar.mock
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice._
 import play.api.Play.materializer
 import play.api.test.CSRFTokenHelper.CSRFFRequestHeader
 import play.api.test.Helpers._
 import play.api.test._
+import repositories.UserRepository
 
-class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
 
-    val loginController = new LoginController(stubControllerComponents())
+class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting with BeforeAndAfterEach{
+
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+    val mockUserRepository: UserRepository = mock[UserRepository]
+    val loginController = new LoginController(stubControllerComponents(), mockUserRepository)
+    val signUpController = new SignUpController(stubControllerComponents(), mockUserRepository)
+    val validSignUpData: SignUpData = SignUpData("John", "Doe", "john.doe@example.com", "Password123")
+
+    override def beforeEach(): Unit = {
+        super.beforeEach()
+        reset(mockUserRepository)
+    }
+
+
 
     "LoginController GET" should {
 
@@ -39,7 +58,7 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
         }
 
         "include a link to the home page" in {
-            val controller = new LoginController(stubControllerComponents())
+            val controller = new LoginController(stubControllerComponents(), mockUserRepository)
             val home = controller.showLoginForm().apply(FakeRequest(GET, "/").withCSRFToken)
 
             contentAsString(home) must include("""<a href="/">Home</a>""")
@@ -56,21 +75,58 @@ class LoginControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injectin
 
     "LoginController POST" should {
 
-        "handle form submission for login" in {
+        "handle form submission for login with correct user login" in {
+            when(mockUserRepository.getUserByEmail(any[String])).thenReturn(Future.successful(Some(validSignUpData)))
+            when(mockUserRepository.checkPassword(any[String], any[String])).thenReturn(true)
+
             val request = FakeRequest(POST, "/login")
                 .withFormUrlEncodedBody(
                     "email" -> "john.doe@example.com",
-                    "password" -> "password123"
+                    "password" -> "Password123"
                 )
 
-            val result = route(app, request).get
+            val result = loginController.submitLoginDetails().apply(request)
 
             status(result) mustBe SEE_OTHER // Expecting a redirect after form submission
             redirectLocation(result) mustBe Some("/") // Expecting to be redirected to the home page
-            flash(result).get("success") mustBe Some("Login successful!") // Assuming a success message in flash scope
+            flash(result).get("success") mustBe Some("Logged in successfully!") // Assuming a success message in flash scope
+        }
+
+        "stay on the login page and show a form with errors when user enters an email which does not exist in the database" in {
+            when(mockUserRepository.getUserByEmail(any[String])).thenReturn(Future.successful(None))
+
+            val request = FakeRequest(POST, "/login")
+                .withFormUrlEncodedBody(
+                    "email" -> "john.doe@example.com",
+                    "password" -> "Password123"
+                )
+
+            val result = loginController.submitLoginDetails().apply(request)
+
+            status(result) mustBe SEE_OTHER // Expecting a redirect after form submission
+            redirectLocation(result) mustBe Some("/login") // Expecting to be redirected to the home page
+            flash(result).get("error") mustBe Some("User not found") // Assuming a success message in flash scope
+        }
+
+        "stay on the login page and show a form with errors when user enters an invalid password" in {
+            when(mockUserRepository.getUserByEmail(any[String])).thenReturn(Future.successful(Some(validSignUpData)))
+            when(mockUserRepository.checkPassword(any[String], any[String])).thenReturn(false)
+
+            val request = FakeRequest(POST, "/login")
+                .withFormUrlEncodedBody(
+                    "email" -> "john.doe@example.com",
+                    "password" -> "incorrectPassword"
+                )
+
+            val result = loginController.submitLoginDetails().apply(request)
+
+            status(result) mustBe SEE_OTHER // Expecting a redirect after form submission
+            redirectLocation(result) mustBe Some("/login") // Expecting to be redirected to the home page
+            flash(result).get("error") mustBe Some("Invalid password") // Assuming a success message in flash scope
         }
 
         "show errors for invalid login when email address is invalid" in {
+
             val result = loginController.submitLoginDetails().apply(FakeRequest().withFormUrlEncodedBody(
                     "email" -> "invalid-email",
                     "password" -> "Password123"

@@ -1,0 +1,24 @@
+@()(implicit request: RequestHeader)
+@import play.api.mvc.Flash
+
+@main("Dashboard") {
+  <h1>Dashboard</h1>
+
+  @request.flash.get("success").map { message =>
+  <div class="alert alert-success">@message</div>
+  }
+
+  @request.flash.get("error").map { message =>
+  <div class="alert alert-danger">@message</div>
+  }
+
+  <div class="links-container">
+    <div class="links">
+      <a href="@routes.HomeController.index()">My Golfers</a>
+      <a href="@routes.HomeController.index()">Leaderboard</a>
+      <a href="@routes.HomeController.index()">Player Insights</a>
+      <a href="@routes.HomeController.index()">My Account</a>
+      <a href="@routes.HomeController.index()">Log Out</a>
+    </div>
+  </div>
+}

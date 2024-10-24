@@ -62,9 +62,17 @@ class UserRepository @Inject()(mongoConfig: MongoConfig)(implicit ec: ExecutionC
 
     def getUserByEmail(email: String): Future[Option[SignUpData]] = {
         val query = Json.obj("email" -> Json.obj("$regex" -> s"^$email$$", "$options" -> "i"))
-        usersCollection.flatMap { collection =>
+
+        val result = usersCollection.flatMap { collection =>
             collection.find(query, Option.empty[JsObject]).one[SignUpData]
         }
+        result.map {
+            case Some(value) => logger.info(s"WOOOHOOOO - USER FOUND $value")
+            case None => logger.info("NO USER FOUND")
+        }
+
+        result
+
     }
 
 

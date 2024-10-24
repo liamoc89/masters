@@ -1,11 +1,20 @@
 @import helper._
 @import play.api.data.Form
 @import play.filters.csrf.CSRF
+@import play.api.mvc.Flash
 
 @(loginForm: Form[LoginData])(implicit request: RequestHeader)
 
 @main("Login") {
   <h1>Login</h1>
+
+  @request.flash.get("success").map { message =>
+  <div class="alert alert-success">@message</div>
+  }
+
+  @request.flash.get("error").map { message =>
+  <div class="alert alert-danger">@message</div>
+  }
 
   @helper.form(action = routes.LoginController.submitLoginDetails()) {
 
